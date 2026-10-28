@@ -1,0 +1,370 @@
+---
+import { Image, getImage } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import '../styles/global.css';
+import logo from '../assets/logo.png';
+import { SITE, FORM_ENDPOINT } from '../data/site';
+import { BUILDS, STEPS, PHOTOS, FEATURED, CATS, STEP_IMG, FAMILY, PROJECT_TYPES } from '../data/content';
+
+// Load every photo in src/assets/photos so Astro can optimise them (WebP).
+const files = import.meta.glob<{ default: ImageMetadata }>('../assets/photos/*.jpg', { eager: true });
+const photo = (name: string): ImageMetadata => {
+  const mod = files[`../assets/photos/${name}.jpg`];
+  if (!mod) throw new Error(`Missing photo: src/assets/photos/${name}.jpg`);
+  return mod.default;
+};
+
+// Gallery tiles: each photo once, plus a large version for the full-size view.
+const tiles = await Promise.all(
+  PHOTOS.map(async (p) => {
+    const full = await getImage({ src: photo(p.file), width: Math.min(1600, photo(p.file).width), format: 'webp' });
+    return { ...p, img: photo(p.file), full: full.src, feat: FEATURED.indexOf(p.file) };
+  })
+);
+const counts = Object.fromEntries(CATS.map(([id]) => [id, PHOTOS.filter((p) => p.cat === id).length]));
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'LocalBusiness',
+  name: SITE.name,
+  description: SITE.description,
+  telephone: SITE.phoneIntl,
+  faxNumber: '+1-604-460-9124',
+  email: SITE.email,
+  areaServed: 'Maple Ridge, BC',
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: '101 – 20120 Stewart Cres.',
+    addressLocality: 'Maple Ridge',
+    addressRegion: 'BC',
+    postalCode: 'V2X 0T4',
+    addressCountry: 'CA',
+  },
+  openingHoursSpecification: [
+    { '@type': 'OpeningHoursSpecification', dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday'], opens: '07:00', closes: '16:00' },
+    { '@type': 'OpeningHoursSpecification', dayOfWeek: 'Friday', opens: '07:00', closes: '15:00' },
+  ],
+};
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{SITE.title}</title>
+  <meta name="description" content={SITE.description} />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/favicon.png" />
+  <!-- TODO: once the domain is live, set `site` in astro.config.mjs so these become absolute URLs. -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content={SITE.title} />
+  <meta property="og:description" content={SITE.description} />
+  <meta property="og:image" content={Astro.site ? new URL('/og-image.jpg', Astro.site).href : '/og-image.jpg'} />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap" rel="stylesheet" />
+  <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+</head>
+<body>
+<div id="top" class="page">
+
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a href="#top" class="logo-link"><Image src={logo} alt="Capital Millwork Inc." height={62} densities={[1, 2]} loading="eager" /></a>
+      <nav class="main-nav" aria-label="Main">
+        <a href="#craft">Our craft</a>
+        <a href="#gallery">Gallery</a>
+        <a href="#who">Who we are</a>
+        <a href="#contact">Contact</a>
+      </nav>
+      <a href={SITE.phoneHref} class="btn-phone">{SITE.phone}</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-grid">
+        <div class="hero-text">
+          <p data-hero class="eyebrow"><span class="eyebrow-dot"></span>Custom millwork · Furniture · Fine cabinetry</p>
+          <h1 data-hero>Built to stand the test of time.</h1>
+          <p data-hero class="hero-sub">Handcrafted cabinetry designed, built and installed by our own team in Maple Ridge. Kitchens, vanities, media units, closets and commercial millwork, made from quality materials for everyday use.</p>
+          <div data-hero class="hero-ctas">
+            <a href="#contact" class="btn-white">Request an estimate</a>
+            <a href="#gallery" class="btn-outline">See the work</a>
+          </div>
+        </div>
+        <div class="hero-media">
+          <Image src={photo('kitchen-white')} alt="White shaker kitchen with marble island by Capital Millwork" class="cover-img"
+            widths={[800, 1200, 1600, 2200]} sizes="(min-width: 1000px) 50vw, 100vw" loading="eager" fetchpriority="high" />
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap section-pad two-col intro">
+      <h2 data-reveal class="h2">Fine cabinetry is the foundation of a home’s character.</h2>
+      <div class="intro-copy">
+        <p data-reveal class="lead">We create custom millwork, bespoke furniture and fine cabinetry that balances timeless aesthetics with modern function. Every piece is designed to be a centrepiece in your home for generations.</p>
+        <p data-reveal class="lead">From design and fabrication to delivery and installation, we keep total control over the quality of your handcrafted designs.</p>
+        <div data-reveal class="tags">
+          {BUILDS.map((b) => <span class="tag">{b}</span>)}
+        </div>
+      </div>
+    </section>
+
+    <section id="craft" class="craft">
+      <div class="wrap section-pad">
+        <div data-reveal class="craft-head">
+          <h2 class="h2">From our shop to your home.</h2>
+          <p>Every project follows the same three steps.</p>
+        </div>
+        <div class="step-tabs" role="tablist" aria-label="Our process">
+          {STEPS.map((s, i) => (
+            <button type="button" class="step-tab" role="tab" id={`step-tab-${i}`} aria-controls="step-panel"
+              aria-selected={i === 0 ? 'true' : 'false'} data-step={i}>
+              <span class="step-kicker">{s.kicker}</span>
+              <span class="step-title">{s.t}</span>
+            </button>
+          ))}
+        </div>
+        <div class="two-col step-panel" id="step-panel" role="tabpanel">
+          <div class="step-media">
+            {STEP_IMG.map((f, i) => (
+              <Image src={photo(f)} alt={STEPS[i].t} class:list={['cover-img', { 'is-active': i === 0 }]}
+                widths={[700, 1100, 1400]} sizes="(min-width: 1000px) 50vw, 100vw" data-step-img={i} />
+            ))}
+          </div>
+          <div class="step-text">
+            {STEPS.map((s, i) => (
+              <div class:list={['step-body', { 'is-active': i === 0 }]} data-step-body={i} hidden={i !== 0}>
+                <h3>{s.t}</h3>
+                {s.p.map((p) => <p>{p}</p>)}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="gallery" class="wrap section-pad gallery">
+      <h2 data-reveal class="h2">Gallery</h2>
+      <div data-reveal class="cat-tabs" role="tablist" aria-label="Gallery categories">
+        {CATS.map(([id, label], i) => (
+          <button type="button" class="cat-tab" role="tab" aria-selected={i === 0 ? 'true' : 'false'} data-cat={id}>
+            {label}<span class="cat-count">{id === 'all' ? '' : counts[id]}</span>
+          </button>
+        ))}
+      </div>
+      <div class="gal-grid" id="gal-grid">
+        {tiles.map((t) => (
+          <button type="button" class="tile" aria-label={t.label} data-cat={t.cat} data-feat={t.feat}
+            data-full={t.full} hidden={t.feat < 0} style={t.feat >= 0 ? `order:${t.feat}` : undefined}>
+            <Image src={t.img} alt={t.label} class="cover-img" widths={[400, 700]}
+              sizes="(min-width: 1000px) 25vw, (min-width: 700px) 33vw, 50vw" />
+            <span class="tile-cap">{t.label}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+
+    <section id="who" class="who">
+      <div class="wrap section-pad two-col who-grid">
+        <div class="who-copy">
+          <h2 data-reveal class="h2">Three generations of woodworking.</h2>
+          <p data-reveal class="lead">Capital Millwork Inc. was founded by Adam Livesey, who has over 20 years in the trade and employs craftsmen of the highest standard. Every project is individually prepared and installed by our own team.</p>
+          <p data-reveal class="small">No job is too complex. Our goal is a finished product that fulfills your needs and exceeds your expectations, at a reasonable value.</p>
+        </div>
+        <div class="timeline">
+          {FAMILY.map((f) => (
+            <div data-reveal class="tl-item">
+              <div class="tl-mark"><span class="tl-dot"></span><span class="tl-line"></span></div>
+              <div class="tl-body">
+                <span class="tl-where">{f.where}</span>
+                <h3>{f.t}</h3>
+                <p>{f.d}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <section id="contact" class="wrap section-pad two-col contact">
+      <div class="contact-info">
+        <h2 data-reveal class="h2">Request an estimate.</h2>
+        <p data-reveal class="intro-p">Call or send the form with your project or any questions about our services. We look forward to serving you.</p>
+        <a data-reveal href={SITE.phoneHref} class="big-phone">{SITE.phone}</a>
+        <a data-reveal href={`mailto:${SITE.email}`} class="email-link">{SITE.email}</a>
+        <div data-reveal class="facts">
+          <div class="fact"><strong>Shop</strong><span>101 – 20120 Stewart Cres.<br />Maple Ridge, BC V2X 0T4</span></div>
+          <div class="fact"><strong>Hours</strong><span>Mon to Thu, 7am to 4pm<br />Fri, 7am to 3pm</span></div>
+          <div class="fact"><strong>Fax</strong><span>{SITE.fax}</span></div>
+        </div>
+      </div>
+      <div>
+        <form data-reveal class="quote-form" id="quote-form" data-endpoint={FORM_ENDPOINT} method="post" action={FORM_ENDPOINT || undefined}>
+          <div class="field-grid">
+            <label class="field">First name<input name="first_name" autocomplete="given-name" required /></label>
+            <label class="field">Last name<input name="last_name" autocomplete="family-name" required /></label>
+            <label class="field">Email<input name="email" type="email" autocomplete="email" required /></label>
+            <label class="field">Phone<input name="phone" type="tel" autocomplete="tel" required /></label>
+          </div>
+          <label class="field">Project<select name="project">{PROJECT_TYPES.map((o) => <option>{o}</option>)}</select></label>
+          <label class="field">Message<textarea name="message" rows="5"></textarea></label>
+          <p class="form-error" id="form-error" role="alert" hidden>Sorry, something went wrong. Please call us at {SITE.phone} or email {SITE.email}.</p>
+          <button type="submit" class="btn-submit">Send request</button>
+        </form>
+        <div class="thanks" id="form-thanks" role="status" hidden>Thank you. We’ll be in touch about your project.</div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <span class="footer-logo"><Image src={logo} alt="Capital Millwork Inc." height={44} densities={[1, 2]} /></span>
+      <span>101 – 20120 Stewart Cres., Maple Ridge BC · <a href={SITE.phoneHref}>{SITE.phone}</a></span>
+      <div class="footer-legal">
+        <span>© 2026 Capital Millwork Inc.</span>
+        <a href="https://backpackdigitalmedia.com" target="_blank" rel="noopener">Powered by Backpack Digital Media</a>
+      </div>
+    </div>
+  </footer>
+
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer" hidden>
+    <img id="lb-img" src="data:," alt="" />
+    <div class="lb-meta"><span id="lb-label"></span><span id="lb-count"></span></div>
+    <button type="button" class="lb-btn lb-prev" id="lb-prev" aria-label="Previous photo">←</button>
+    <button type="button" class="lb-btn lb-next" id="lb-next" aria-label="Next photo">→</button>
+  </div>
+
+  <div class="mobile-bar">
+    <a href={SITE.phoneHref} class="mb-call">Call</a>
+    <a href="#contact" class="mb-quote">Estimate</a>
+  </div>
+</div>
+
+<script>
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const EASE = 'cubic-bezier(.16,.84,.3,1)';
+
+  /* ---- Scroll reveal: fade [data-reveal] up as it enters the viewport ---- */
+  if (!reduce && 'IntersectionObserver' in window) {
+    const els = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'));
+    const hidden = els.filter((el) => el.getBoundingClientRect().top >= window.innerHeight);
+    hidden.forEach((el) => { el.style.opacity = '0'; el.style.transform = 'translateY(28px)'; });
+    const io = new IntersectionObserver((entries) => {
+      let i = 0;
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const el = entry.target as HTMLElement;
+        const d = i++ * 0.08;
+        el.style.transition = `opacity .9s ${EASE} ${d}s, transform .9s ${EASE} ${d}s`;
+        el.style.opacity = '1';
+        el.style.transform = 'none';
+        io.unobserve(el);
+      });
+    }, { rootMargin: '0px 0px -8% 0px' });
+    hidden.forEach((el) => io.observe(el));
+  }
+
+  /* ---- Process tabs ---- */
+  const stepTabs = document.querySelectorAll<HTMLButtonElement>('.step-tab');
+  stepTabs.forEach((tab) => tab.addEventListener('click', () => {
+    const n = tab.dataset.step;
+    stepTabs.forEach((t) => t.setAttribute('aria-selected', String(t === tab)));
+    document.querySelectorAll<HTMLElement>('[data-step-img]').forEach((img) => img.classList.toggle('is-active', img.dataset.stepImg === n));
+    document.querySelectorAll<HTMLElement>('[data-step-body]').forEach((b) => {
+      const on = b.dataset.stepBody === n;
+      b.hidden = !on;
+      b.classList.toggle('is-active', on);
+    });
+  }));
+
+  /* ---- Gallery categories ---- */
+  const grid = document.getElementById('gal-grid')!;
+  const tiles = Array.from(grid.querySelectorAll<HTMLButtonElement>('.tile'));
+  const catTabs = document.querySelectorAll<HTMLButtonElement>('.cat-tab');
+  let list: HTMLButtonElement[] = [];
+
+  function showCat(cat: string, animate: boolean) {
+    list = [];
+    tiles.forEach((t) => {
+      const feat = Number(t.dataset.feat);
+      const on = cat === 'all' ? feat >= 0 : t.dataset.cat === cat;
+      t.hidden = !on;
+      t.style.order = cat === 'all' && on ? String(feat) : '';
+      t.classList.remove('is-anim');
+      t.style.animationDelay = '';
+    });
+    list = tiles.filter((t) => !t.hidden).sort((a, b) => Number(a.style.order || 0) - Number(b.style.order || 0));
+    if (animate) {
+      void grid.offsetWidth; // restart the CSS animation
+      list.forEach((t, i) => { t.style.animationDelay = `${Math.min(i, 12) * 0.05}s`; t.classList.add('is-anim'); });
+    }
+  }
+  catTabs.forEach((tab) => tab.addEventListener('click', () => {
+    catTabs.forEach((t) => t.setAttribute('aria-selected', String(t === tab)));
+    closeLb();
+    showCat(tab.dataset.cat!, true);
+  }));
+  showCat('all', false);
+
+  /* ---- Lightbox (full-size view) ---- */
+  const lb = document.getElementById('lightbox')!;
+  const lbImg = document.getElementById('lb-img') as HTMLImageElement;
+  const lbLabel = document.getElementById('lb-label')!;
+  const lbCount = document.getElementById('lb-count')!;
+  let idx: number | null = null;
+  let lastFocus: HTMLElement | null = null;
+
+  function openLb(i: number) {
+    const n = list.length;
+    idx = ((i % n) + n) % n;
+    const t = list[idx];
+    lbImg.src = t.dataset.full!;
+    lbImg.alt = t.getAttribute('aria-label') || '';
+    lbLabel.textContent = lbImg.alt;
+    lbCount.textContent = `${idx + 1} / ${n}`;
+    if (lb.hidden) { lastFocus = t; lb.hidden = false; (document.getElementById('lb-next') as HTMLElement).focus(); }
+  }
+  function closeLb() {
+    if (idx === null) return;
+    idx = null;
+    lb.hidden = true;
+    lastFocus?.focus();
+  }
+  tiles.forEach((t) => t.addEventListener('click', () => openLb(list.indexOf(t))));
+  lb.addEventListener('click', closeLb);
+  document.getElementById('lb-prev')!.addEventListener('click', (e) => { e.stopPropagation(); if (idx !== null) openLb(idx - 1); });
+  document.getElementById('lb-next')!.addEventListener('click', (e) => { e.stopPropagation(); if (idx !== null) openLb(idx + 1); });
+  window.addEventListener('keydown', (e) => {
+    if (idx === null) return;
+    if (e.key === 'Escape') closeLb();
+    if (e.key === 'ArrowRight') openLb(idx + 1);
+    if (e.key === 'ArrowLeft') openLb(idx - 1);
+  });
+
+  /* ---- Estimate form ---- */
+  const form = document.getElementById('quote-form') as HTMLFormElement;
+  const thanks = document.getElementById('form-thanks')!;
+  const err = document.getElementById('form-error')!;
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const endpoint = form.dataset.endpoint;
+    const done = () => { form.hidden = true; thanks.hidden = false; };
+    if (!endpoint) { done(); return; } // demo mode: no endpoint set yet
+    const btn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+    btn.disabled = true;
+    err.hidden = true;
+    try {
+      const res = await fetch(endpoint, { method: 'POST', body: new FormData(form), headers: { Accept: 'application/json' } });
+      if (!res.ok) throw new Error(String(res.status));
+      done();
+    } catch {
+      err.hidden = false;
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
